@@ -328,10 +328,11 @@
     </div>
 
     <div class="howto">
-      <div class="howto-title">📧 Passwort eines Admins zurücksetzen</div>
-      <p style="font-size:.84rem;color:var(--muted);margin:0 0 10px">Schickt einen Zurücksetzen-Link an die E-Mail des Kontos. Funktioniert nur mit echten E-Mail-Adressen.</p>
-      <div class="field" style="margin-bottom:10px"><label>E-Mail des Kontos</label><input type="email" id="resetEmail" placeholder="admin@example.com" autocomplete="off"></div>
-      <button class="btn btn-ghost btn-sm" id="sendResetBtn" style="width:100%;justify-content:center">Reset-Link senden</button>
+      <div class="howto-title">🔑 Passwort eines Kontos neu vergeben</div>
+      <p style="font-size:.84rem;color:var(--muted);margin:0 0 10px">Setzt direkt ein neues Passwort für das angegebene Konto — ohne E-Mail, ohne Link.</p>
+      <div class="field" style="margin-bottom:10px"><label>E-Mail des Kontos</label><input type="email" id="setPwEmail" placeholder="fisi17@unterricht.local" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:10px"><label>Neues Passwort (mind. 6 Zeichen)</label><input type="password" id="setPwValue" placeholder="••••••••" autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-sm" id="setPwBtn" style="width:100%;justify-content:center">Passwort vergeben</button>
     </div>
   </div>
 </div>
@@ -556,7 +557,7 @@ $("#saveCodeBtn").onclick=async()=>{
 // Passwort-Verwaltung (nur Super-Admin)
 $("#pwMgmtBtn").onclick=()=>{
   if(myRole!=="superadmin") return toast("Nur für Super-Admin");
-  $("#ownNewPw").value="";$("#resetEmail").value="";
+  $("#ownNewPw").value="";$("#setPwEmail").value="";$("#setPwValue").value="";
   open("pwMgmtModal");
 };
 $("#saveOwnPwBtn").onclick=async()=>{
@@ -568,13 +569,31 @@ $("#saveOwnPwBtn").onclick=async()=>{
   $("#ownNewPw").value="";
   toast("Dein Passwort wurde geändert ✓");
 };
-$("#sendResetBtn").onclick=async()=>{
+$("#setPwBtn").onclick=async()=>{
   if(myRole!=="superadmin") return toast("Nur für Super-Admin");
-  const em=$("#resetEmail").value.trim();
+  const em=$("#setPwEmail").value.trim();
+  const pw=$("#setPwValue").value;
   if(!em) return toast("Bitte E-Mail eingeben");
-  const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:window.location.href});
-  if(error) return toast("Fehler: "+error.message);
-  toast("Reset-Link gesendet (falls E-Mail existiert)");
+  if(!pw || pw.length<6) return toast("Passwort mind. 6 Zeichen");
+  const btn=$("#setPwBtn"); const old=btn.textContent; btn.textContent="Wird gesetzt…"; btn.disabled=true;
+  try{
+    const {data,error}=await sb.functions.invoke("set-admin-password",{body:{email:em,password:pw}});
+    if(error){
+      // Fehlermeldung aus der Function herausholen
+      let msg=error.message;
+      try{ const ctx=await error.context?.json?.(); if(ctx?.error) msg=ctx.error; }catch(_){}
+      toast("Fehler: "+msg);
+    } else if(data?.error){
+      toast("Fehler: "+data.error);
+    } else {
+      $("#setPwEmail").value="";$("#setPwValue").value="";
+      toast("Passwort für "+em+" gesetzt ✓");
+    }
+  }catch(e){
+    toast("Fehler: "+(e?.message||e));
+  }finally{
+    btn.textContent=old; btn.disabled=false;
+  }
 };
 
 // FILTER
