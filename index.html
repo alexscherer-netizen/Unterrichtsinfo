@@ -2,11 +2,15 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Unterricht-Info</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
 <link rel="manifest" href="data:application/json,{%22name%22:%22Unterricht-Info%22,%22short_name%22:%22Info%22,%22start_url%22:%22.%22,%22scope%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23f6f4ef%22,%22theme_color%22:%22%236c5ce7%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>📋</text></svg>%22,%22sizes%22:%22any%22,%22type%22:%22image/svg+xml%22,%22purpose%22:%22any maskable%22}]}">
 <meta name="theme-color" content="#6c5ce7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Unterricht-Info">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%236c5ce7'/><text x='50' y='52' font-size='56' text-anchor='middle' dominant-baseline='central'>📋</text></svg>">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -126,6 +130,55 @@
   .gate-hint a{color:var(--em);font-weight:600;text-decoration:none}
   .gate.shake .gate-card{animation:shake .4s}
   @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+
+  /* Home-Bildschirm-Anleitung */
+  .icon-only{padding:7px 11px;font-size:1rem;line-height:1}
+  .howto{background:var(--card2);border-radius:14px;padding:15px 16px;margin-bottom:12px}
+  .howto-title{font-weight:700;font-size:.95rem;margin-bottom:8px}
+  .howto ol{margin:0;padding-left:20px}
+  .howto li{font-size:.88rem;margin-bottom:7px;line-height:1.5;color:var(--txt)}
+  .howto li:last-child{margin-bottom:0}
+  .howto-note{font-size:.78rem;color:var(--muted);margin-top:9px;margin-bottom:0;font-style:italic}
+  .ios-share{display:inline-block;background:var(--em-soft);color:var(--em-d);border-radius:6px;padding:0 5px;font-size:.85rem}
+  .howto.hl{outline:2px solid var(--em);outline-offset:1px}
+
+  /* ---- Smartphone & Tablet ---- */
+  @media(max-width:768px){
+    main{padding:18px 14px}
+    .toolbar{flex-direction:column;align-items:stretch}
+    .toolbar .grow{min-width:0}
+    #newBtn,#codeBtn{width:100%;justify-content:center}
+    .card{padding:16px}
+  }
+  @media(max-width:520px){
+    .row2{grid-template-columns:1fr}
+    .head-in{padding:11px 14px;gap:8px}
+    .brand{font-size:1.05rem}
+    .logo{font-size:1.4rem}
+    .head-actions{gap:6px}
+    #loginBtn{padding:7px 11px}
+    .modal{padding:20px 18px;border-radius:18px}
+    .gate-card{padding:30px 22px}
+    .card h3{font-size:1.05rem}
+    .meta{gap:10px}
+    /* Größere Tap-Ziele für Touch */
+    .seg button{padding:10px 8px}
+    .btn{padding:11px 16px}
+    .close-x{width:36px;height:36px;font-size:1.3rem}
+  }
+  /* Touch-Geräte: Hover-Effekte zurücknehmen, kein „Kleben" */
+  @media(hover:none){
+    .card:hover{transform:none;box-shadow:var(--shadow)}
+    .card:active{transform:scale(.99)}
+    .btn-primary:hover{transform:none}
+  }
+  /* Sichere Ränder bei Notch-Geräten + im installierten Standalone-Modus */
+  @supports(padding:max(0px)){
+    header .head-in{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  }
+  @media(display-mode:standalone){
+    header{padding-top:env(safe-area-inset-top)}
+  }
 </style>
 </head>
 <body>
@@ -149,6 +202,7 @@
     <div class="brand">Unterricht<span>-Info</span></div>
     <div class="head-actions">
       <button class="btn btn-ghost btn-sm" id="installBtn" style="display:none">⬇ Installieren</button>
+      <button class="btn btn-ghost btn-sm icon-only" id="a2hsBtn" title="Zum Home-Bildschirm hinzufügen" style="display:none">📲</button>
       <span class="pill" id="rolePill">Ansicht</span>
       <button class="btn btn-ghost btn-sm" id="loginBtn">Admin-Login</button>
     </div>
@@ -175,7 +229,7 @@
 
 <footer>
   <strong>Unterricht-Info</strong> — Infos &amp; Aufgaben bei Unterrichtsausfall<br>
-  <a href="#" id="impressumLink" style="color:var(--em)">Impressum</a>
+  <a href="#" id="a2hsLink">📲 App installieren</a> · <a href="#" id="impressumLink">Impressum</a>
 </footer>
 
 </div><!-- /#app -->
@@ -255,6 +309,42 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" data-close>Abbrechen</button>
       <button class="btn btn-primary" id="saveCodeBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOME-BILDSCHIRM ANLEITUNG -->
+<div class="overlay" id="a2hsModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2>📲 Zum Home-Bildschirm</h2>
+    <p class="sub">So legst du die App wie eine normale App auf dein Gerät:</p>
+
+    <div class="howto" id="howIos">
+      <div class="howto-title">📱 iPhone / iPad (Safari)</div>
+      <ol>
+        <li>Tippe unten (oder oben) auf das <strong>Teilen-Symbol</strong> <span class="ios-share">⬆️</span> in Safari.</li>
+        <li>Wische im Menü nach unten und wähle <strong>„Zum Home-Bildschirm"</strong>.</li>
+        <li>Tippe oben rechts auf <strong>„Hinzufügen"</strong>.</li>
+      </ol>
+      <p class="howto-note">Hinweis: Funktioniert nur in <strong>Safari</strong>, nicht in Chrome auf dem iPhone.</p>
+    </div>
+
+    <div class="howto" id="howAndroid">
+      <div class="howto-title">🤖 Android (Chrome)</div>
+      <ol>
+        <li>Tippe oben rechts auf das <strong>Menü</strong> (⋮).</li>
+        <li>Wähle <strong>„App installieren"</strong> bzw. <strong>„Zum Startbildschirm hinzufügen"</strong>.</li>
+        <li>Bestätige mit <strong>„Installieren"</strong> / <strong>„Hinzufügen"</strong>.</li>
+      </ol>
+    </div>
+
+    <div class="howto" id="howDesktop">
+      <div class="howto-title">💻 PC (Chrome / Edge)</div>
+      <ol>
+        <li>Klicke in der Adressleiste rechts auf das <strong>Installieren-Symbol</strong> (Monitor mit Pfeil).</li>
+        <li>Oder Menü (⋮) → <strong>„App installieren"</strong>.</li>
+      </ol>
     </div>
   </div>
 </div>
@@ -584,16 +674,38 @@ sb.channel("anliegen-rt").on("postgres_changes",{event:"*",schema:"public",table
 
   let deferred = null;
   const btn = document.getElementById('installBtn');
+  const a2hsBtn = document.getElementById('a2hsBtn');
+
+  // Geräteerkennung
+  const ua = navigator.userAgent || '';
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (/Macintosh/i.test(ua) && 'ontouchend' in document);
+  const isAndroid = /android/i.test(ua);
+  const isMobile = isIOS || isAndroid || window.matchMedia('(max-width:768px)').matches;
+  const isStandalone = window.matchMedia('(display-mode:standalone)').matches || window.navigator.standalone === true;
+
+  // Anleitung passend hervorheben
+  function highlightHowto(){
+    document.querySelectorAll('.howto').forEach(h=>h.classList.remove('hl'));
+    if(isIOS) document.getElementById('howIos')?.classList.add('hl');
+    else if(isAndroid) document.getElementById('howAndroid')?.classList.add('hl');
+    else document.getElementById('howDesktop')?.classList.add('hl');
+  }
+  function openA2HS(){ highlightHowto(); open('a2hsModal'); }
+
+  // Header-Button für Mobil (dort greift beforeinstallprompt oft nicht, v.a. iOS)
+  if(isMobile && !isStandalone){ a2hsBtn.style.display='inline-flex'; }
+  a2hsBtn.onclick = openA2HS;
+  document.getElementById('a2hsLink').onclick = e => { e.preventDefault(); openA2HS(); };
+
+  // Echter Install-Prompt (Chrome/Edge Desktop & Android)
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferred = e;
     btn.style.display = 'inline-flex';
+    a2hsBtn.style.display = 'none'; // echter Button hat Vorrang
   });
   btn.onclick = async () => {
-    if (!deferred) {
-      toast('Über das Browser-Menü „App installieren" hinzufügen');
-      return;
-    }
+    if (!deferred) { openA2HS(); return; }
     deferred.prompt();
     const { outcome } = await deferred.userChoice;
     deferred = null;
@@ -602,6 +714,7 @@ sb.channel("anliegen-rt").on("postgres_changes",{event:"*",schema:"public",table
   };
   window.addEventListener('appinstalled', () => {
     btn.style.display = 'none';
+    a2hsBtn.style.display = 'none';
     toast('App installiert ✓');
   });
 })();
