@@ -115,7 +115,7 @@
   @media(max-width:520px){.row2{grid-template-columns:1fr}.head-in{padding:12px}}
 
   /* Zugangs-Sperre */
-  .gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#efe9f8,#f6f4ef);z-index:300}
+  .gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#efe9f8,#f6f4ef);z-index:90}
   .gate-card{background:#fff;border-radius:24px;box-shadow:var(--shadow-lg);padding:36px 30px;max-width:380px;width:100%;text-align:center}
   .gate-ico{font-size:2.6rem;margin-bottom:10px}
   .gate-card h1{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;margin-bottom:10px}
@@ -293,8 +293,32 @@ const TYP = {
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
 function open(id){$("#"+id).classList.add("open")}
 function closeM(id){$("#"+id).classList.remove("open")}
-document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".overlay").classList.remove("open"));
-document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)o.classList.remove("open")});
+
+// Prüft, ob die Schüler-Sperre wieder greifen muss (kein Admin & kein gültiger Geräte-Code)
+function gateAllowed(){
+  if(session) return true;
+  let saved=null; try{ saved=localStorage.getItem(GATE_KEY); }catch(_){}
+  return !!(saved && zugangscode && saved===zugangscode);
+}
+function enforceGate(){
+  if(!gateAllowed()){
+    $("#app").style.display="none";
+    $("#gate").style.display="flex";
+    $("#gateCode").value="";
+  }
+}
+
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>{
+  const ov=e.target.closest(".overlay");
+  ov.classList.remove("open");
+  if(ov.id==="loginModal") enforceGate();
+});
+document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{
+  if(e.target===o){
+    o.classList.remove("open");
+    if(o.id==="loginModal") enforceGate();
+  }
+});
 
 function fmtDate(d){const dt=new Date(d+"T00:00:00");return dt.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});}
 
@@ -338,9 +362,12 @@ $("#gateBtn").onclick=async()=>{
   }
 };
 $("#gateCode").addEventListener("keydown",e=>{if(e.key==="Enter")$("#gateBtn").click();});
-$("#gateAdminLink").onclick=e=>{
+$("#gateAdminLink").onclick=async e=>{
   e.preventDefault();
-  showApp(); // App zeigen, damit Login-Button erreichbar ist
+  if(!zugangscode) await fetchZugangscode(); // für spätere Gate-Prüfung
+  // App NICHT freigeben – Login-Fenster legt sich über die Sperrseite.
+  // Bei erfolgreichem Login schaltet refreshAuth() die App frei,
+  // beim Schließen ohne Login bleibt die Sperre bestehen.
   authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";
   open("loginModal");
 };
