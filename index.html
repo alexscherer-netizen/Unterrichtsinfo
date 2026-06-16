@@ -218,6 +218,7 @@
     </div>
     <button class="btn btn-primary" id="newBtn" style="display:none">＋ Neues Anliegen</button>
     <button class="btn btn-ghost" id="codeBtn" style="display:none">🔑 Zugangscode</button>
+    <button class="btn btn-ghost" id="pwMgmtBtn" style="display:none">👑 Passwörter</button>
   </div>
 
   <div class="grid" id="list"></div>
@@ -241,7 +242,7 @@
     <h2>Admin-Login</h2>
     <p class="sub">Anmeldung für berechtigte Personen.</p>
     <div class="field"><label>E-Mail</label><input type="email" id="email" value="fisi17@unterricht.local" placeholder="admin@example.com"></div>
-    <div class="field"><label>Passwort</label><input type="password" id="pw" value="Fisi17!Start" placeholder="••••••••"></div>
+    <div class="field"><label>Passwort</label><input type="password" id="pw" placeholder="••••••••" autocomplete="off"></div>
     <div class="modal-actions">
       <button class="btn btn-primary" id="doLogin">Anmelden</button>
     </div>
@@ -313,6 +314,28 @@
   </div>
 </div>
 
+<!-- PASSWORT-VERWALTUNG (nur Super-Admin) -->
+<div class="overlay" id="pwMgmtModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2>👑 Passwort-Verwaltung</h2>
+    <p class="sub">Nur für den Super-Admin. Hier verwaltest du Zugangsdaten.</p>
+
+    <div class="howto" style="background:var(--em-soft)">
+      <div class="howto-title">🔐 Eigenes Passwort ändern</div>
+      <div class="field" style="margin-bottom:10px"><label>Neues Passwort (mind. 6 Zeichen)</label><input type="password" id="ownNewPw" placeholder="••••••••" autocomplete="new-password"></div>
+      <button class="btn btn-primary btn-sm" id="saveOwnPwBtn" style="width:100%;justify-content:center">Eigenes Passwort speichern</button>
+    </div>
+
+    <div class="howto">
+      <div class="howto-title">📧 Passwort eines Admins zurücksetzen</div>
+      <p style="font-size:.84rem;color:var(--muted);margin:0 0 10px">Schickt einen Zurücksetzen-Link an die E-Mail des Kontos. Funktioniert nur mit echten E-Mail-Adressen.</p>
+      <div class="field" style="margin-bottom:10px"><label>E-Mail des Kontos</label><input type="email" id="resetEmail" placeholder="admin@example.com" autocomplete="off"></div>
+      <button class="btn btn-ghost btn-sm" id="sendResetBtn" style="width:100%;justify-content:center">Reset-Link senden</button>
+    </div>
+  </div>
+</div>
+
 <!-- HOME-BILDSCHIRM ANLEITUNG -->
 <div class="overlay" id="a2hsModal">
   <div class="modal" style="position:relative">
@@ -370,6 +393,7 @@ const SB_KEY = "sb_publishable_6xbD_lAeICWBhdLWDmGmpQ_DBZmUH_A";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
 let session = null, items = [], filter = "aktuell", editId = null, authMode = "login";
+let myRole = null; // 'admin' | 'superadmin' | null
 
 const $ = s => document.querySelector(s);
 const esc = s => (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -466,10 +490,19 @@ async function refreshAuth(){
   const {data}=await sb.auth.getSession();
   session=data.session;
   const isAdmin=!!session;
-  $("#rolePill").textContent=isAdmin?"Admin":"Ansicht";
+  // Rolle des eingeloggten Admins ermitteln
+  myRole=null;
+  if(isAdmin){
+    const email=session.user?.email;
+    const {data:r}=await sb.from("admin_roles").select("role").eq("email",email).maybeSingle();
+    myRole = r ? r.role : "admin"; // bekannter Login ohne Eintrag = normaler Admin
+  }
+  const isSuper = myRole==="superadmin";
+  $("#rolePill").textContent=isSuper?"Super-Admin":(isAdmin?"Admin":"Ansicht");
   $("#rolePill").className="pill"+(isAdmin?" admin":"");
   $("#newBtn").style.display=isAdmin?"inline-flex":"none";
   $("#codeBtn").style.display=isAdmin?"inline-flex":"none";
+  $("#pwMgmtBtn").style.display=isSuper?"inline-flex":"none"; // nur Super-Admin
   $("#loginBtn").textContent=isAdmin?"Abmelden":"Admin-Login";
   // Admins sehen die App immer (auch ohne Schüler-Zugangscode)
   if(isAdmin) showApp();
@@ -522,6 +555,30 @@ $("#saveCodeBtn").onclick=async()=>{
   zugangscode=nc;
   closeM("codeModal");
   toast("Zugangscode geändert ✓");
+};
+
+// Passwort-Verwaltung (nur Super-Admin)
+$("#pwMgmtBtn").onclick=()=>{
+  if(myRole!=="superadmin") return toast("Nur für Super-Admin");
+  $("#ownNewPw").value="";$("#resetEmail").value="";
+  open("pwMgmtModal");
+};
+$("#saveOwnPwBtn").onclick=async()=>{
+  if(myRole!=="superadmin") return toast("Nur für Super-Admin");
+  const np=$("#ownNewPw").value;
+  if(!np || np.length<6) return toast("Mindestens 6 Zeichen");
+  const {error}=await sb.auth.updateUser({password:np});
+  if(error) return toast("Fehler: "+error.message);
+  $("#ownNewPw").value="";
+  toast("Dein Passwort wurde geändert ✓");
+};
+$("#sendResetBtn").onclick=async()=>{
+  if(myRole!=="superadmin") return toast("Nur für Super-Admin");
+  const em=$("#resetEmail").value.trim();
+  if(!em) return toast("Bitte E-Mail eingeben");
+  const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:window.location.href});
+  if(error) return toast("Fehler: "+error.message);
+  toast("Reset-Link gesendet (falls E-Mail existiert)");
 };
 
 // FILTER
