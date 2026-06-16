@@ -113,10 +113,36 @@
   .seg button{flex:1;border:none;background:none;color:var(--muted);padding:8px 12px;border-radius:10px;font-size:.84rem;font-weight:600;cursor:pointer;transition:.15s}
   .seg button.active{background:#fff;color:var(--em-d);box-shadow:var(--shadow)}
   @media(max-width:520px){.row2{grid-template-columns:1fr}.head-in{padding:12px}}
+
+  /* Zugangs-Sperre */
+  .gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#efe9f8,#f6f4ef);z-index:300}
+  .gate-card{background:#fff;border-radius:24px;box-shadow:var(--shadow-lg);padding:36px 30px;max-width:380px;width:100%;text-align:center}
+  .gate-ico{font-size:2.6rem;margin-bottom:10px}
+  .gate-card h1{font-size:1.5rem;font-weight:800;letter-spacing:-.5px;margin-bottom:10px}
+  .gate-card h1 span{color:var(--em)}
+  .gate-card p{font-size:.9rem;color:var(--muted);margin-bottom:18px;line-height:1.6}
+  .gate-card input{text-align:center;font-size:1.05rem;letter-spacing:1px;margin-bottom:12px}
+  .gate-hint{font-size:.78rem;margin-top:18px;margin-bottom:0}
+  .gate-hint a{color:var(--em);font-weight:600;text-decoration:none}
+  .gate.shake .gate-card{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 </style>
 </head>
 <body>
 
+<!-- ZUGANGS-SPERRE -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-ico">🔒</div>
+    <h1>Unterricht<span>-Info</span></h1>
+    <p>Bitte gib den Zugangscode deiner Klasse ein, um die Infos und Aufgaben zu sehen.</p>
+    <input type="text" id="gateCode" placeholder="Zugangscode" autocomplete="off">
+    <button class="btn btn-primary" id="gateBtn" style="width:100%;justify-content:center;margin-top:4px">Zugang öffnen</button>
+    <p class="gate-hint">Den Code bekommst du von deiner Lehrkraft.<br>Bist du Admin? <a href="#" id="gateAdminLink">Hier anmelden</a></p>
+  </div>
+</div>
+
+<div id="app" style="display:none">
 <header>
   <div class="head-in">
     <span class="logo">📋</span>
@@ -137,6 +163,7 @@
       <button data-f="erledigt">Erledigt</button>
     </div>
     <button class="btn btn-primary" id="newBtn" style="display:none">＋ Neues Anliegen</button>
+    <button class="btn btn-ghost" id="codeBtn" style="display:none">🔑 Zugangscode</button>
   </div>
 
   <div class="grid" id="list"></div>
@@ -150,6 +177,8 @@
   <strong>Unterricht-Info</strong> — Infos &amp; Aufgaben bei Unterrichtsausfall<br>
   <a href="#" id="impressumLink" style="color:var(--em)">Impressum</a>
 </footer>
+
+</div><!-- /#app -->
 
 <!-- LOGIN MODAL -->
 <div class="overlay" id="loginModal">
@@ -215,6 +244,21 @@
   <div class="modal" style="position:relative" id="detailBody"></div>
 </div>
 
+<!-- ZUGANGSCODE MODAL -->
+<div class="overlay" id="codeModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2>Zugangscode ändern</h2>
+    <p class="sub">Diesen Code geben Schüler einmalig ein, um die Liste zu sehen.</p>
+    <div class="field"><label>Aktueller Code</label><input type="text" id="curCode" readonly style="background:var(--card2)"></div>
+    <div class="field"><label>Neuer Code</label><input type="text" id="newCode" placeholder="z.B. SCHULE2026"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Abbrechen</button>
+      <button class="btn btn-primary" id="saveCodeBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- IMPRESSUM MODAL -->
 <div class="overlay" id="impressumModal">
   <div class="modal" style="position:relative">
@@ -254,6 +298,53 @@ document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)o
 
 function fmtDate(d){const dt=new Date(d+"T00:00:00");return dt.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});}
 
+/* ---- Zugangs-Sperre für Schüler ---- */
+const GATE_KEY = "ui_zugang_ok";
+let zugangscode = null;
+
+function showApp(){
+  $("#gate").style.display="none";
+  $("#app").style.display="";
+}
+
+async function fetchZugangscode(){
+  const {data}=await sb.from("app_settings").select("value").eq("key","zugangscode").maybeSingle();
+  zugangscode = data ? data.value : "SCHULE2026";
+  return zugangscode;
+}
+
+async function checkGate(){
+  // Bereits auf diesem Gerät freigeschaltet?
+  let saved=null;
+  try{ saved=localStorage.getItem(GATE_KEY); }catch(_){}
+  await fetchZugangscode();
+  if(saved && saved===zugangscode){ showApp(); return true; }
+  return false;
+}
+
+$("#gateBtn").onclick=async()=>{
+  const val=$("#gateCode").value.trim();
+  if(!val) return;
+  if(!zugangscode) await fetchZugangscode();
+  if(val.toUpperCase()===(zugangscode||"").toUpperCase()){
+    try{ localStorage.setItem(GATE_KEY, zugangscode); }catch(_){}
+    showApp();
+    toast("Willkommen ✓");
+  }else{
+    const g=$("#gate"); g.classList.add("shake");
+    setTimeout(()=>g.classList.remove("shake"),450);
+    $("#gateCode").value="";
+    toast("Falscher Code");
+  }
+};
+$("#gateCode").addEventListener("keydown",e=>{if(e.key==="Enter")$("#gateBtn").click();});
+$("#gateAdminLink").onclick=e=>{
+  e.preventDefault();
+  showApp(); // App zeigen, damit Login-Button erreichbar ist
+  authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";
+  open("loginModal");
+};
+
 async function refreshAuth(){
   const {data}=await sb.auth.getSession();
   session=data.session;
@@ -261,12 +352,22 @@ async function refreshAuth(){
   $("#rolePill").textContent=isAdmin?"Admin":"Ansicht";
   $("#rolePill").className="pill"+(isAdmin?" admin":"");
   $("#newBtn").style.display=isAdmin?"inline-flex":"none";
+  $("#codeBtn").style.display=isAdmin?"inline-flex":"none";
   $("#loginBtn").textContent=isAdmin?"Abmelden":"Admin-Login";
+  // Admins sehen die App immer (auch ohne Schüler-Zugangscode)
+  if(isAdmin) showApp();
   render();
 }
 
 $("#loginBtn").onclick=async()=>{
-  if(session){await sb.auth.signOut();await refreshAuth();toast("Abgemeldet");}
+  if(session){
+    await sb.auth.signOut();
+    await refreshAuth();
+    toast("Abgemeldet");
+    // Nach Logout: nur weiter sichtbar, wenn Schüler-Zugang auf Gerät gespeichert
+    const ok=await checkGate();
+    if(!ok){ $("#app").style.display="none"; $("#gate").style.display="flex"; }
+  }
   else{authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";open("loginModal");}
 };
 $("#toSignup").onclick=e=>{
@@ -288,6 +389,23 @@ $("#doLogin").onclick=async()=>{
 };
 
 $("#impressumLink").onclick=e=>{e.preventDefault();open("impressumModal");};
+
+$("#codeBtn").onclick=async()=>{
+  await fetchZugangscode();
+  $("#curCode").value=zugangscode||"";
+  $("#newCode").value="";
+  open("codeModal");
+};
+$("#saveCodeBtn").onclick=async()=>{
+  if(!session) return toast("Bitte zuerst anmelden");
+  const nc=$("#newCode").value.trim();
+  if(!nc) return toast("Bitte neuen Code eingeben");
+  const {error}=await sb.from("app_settings").upsert({key:"zugangscode",value:nc,updated_at:new Date().toISOString()});
+  if(error) return toast("Fehler: "+error.message);
+  zugangscode=nc;
+  closeM("codeModal");
+  toast("Zugangscode geändert ✓");
+};
 
 // FILTER
 $("#filterSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
@@ -406,7 +524,11 @@ window.toast=toast;window.closeM=closeM;
 // Realtime: Schüler sehen Updates live
 sb.channel("anliegen-rt").on("postgres_changes",{event:"*",schema:"public",table:"anliegen"},load).subscribe();
 
-(async()=>{await refreshAuth();await load();})();
+(async()=>{
+  await refreshAuth();   // Admins werden hier ggf. direkt durchgelassen
+  if(!session){ await checkGate(); }  // sonst Zugangscode prüfen
+  await load();
+})();
 
 /* ---- PWA: Installierbarkeit (Service Worker inline + Install-Button) ---- */
 (function setupPWA(){
