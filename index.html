@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unterricht-Info</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<link rel="manifest" href="data:application/json,{%22name%22:%22Unterricht-Info%22,%22short_name%22:%22Info%22,%22start_url%22:%22.%22,%22scope%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23f6f4ef%22,%22theme_color%22:%22%236c5ce7%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>📋</text></svg>%22,%22sizes%22:%22any%22,%22type%22:%22image/svg+xml%22,%22purpose%22:%22any maskable%22}]}">
+<meta name="theme-color" content="#6c5ce7">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f6f4ef; --bg2:#ffffff; --card:#ffffff; --card2:#f1ede6;
+    --line:#e6e0d6; --txt:#2d2a26; --muted:#8a8276;
+    --em:#6c5ce7; --em-d:#5a4bd4; --em-soft:#efecfd;
+    --coral:#ff7a59; --red:#e85d5d; --amber:#f0a64a; --blue:#4a9ed6; --green:#3fb27f;
+    --shadow:0 4px 16px rgba(80,70,50,.08); --shadow-lg:0 12px 40px rgba(80,70,50,.16);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);color:var(--txt);
+    min-height:100vh;line-height:1.55;-webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:rgba(255,255,255,.8);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50;
+  }
+  .head-in{max-width:900px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;gap:12px}
+  .logo{font-size:1.6rem}
+  .brand{font-weight:800;font-size:1.2rem;letter-spacing:-.5px;color:var(--txt)}
+  .brand span{color:var(--em)}
+  .head-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .pill{font-size:.72rem;padding:5px 12px;border-radius:999px;background:var(--card2);color:var(--muted);font-weight:600;cursor:default;user-select:none}
+  .pill.admin{background:var(--em-soft);color:var(--em-d)}
+  main{max-width:900px;margin:0 auto;padding:22px 18px}
+  .btn{
+    border:none;border-radius:12px;padding:10px 18px;font-size:.9rem;font-weight:600;
+    cursor:pointer;transition:.18s;display:inline-flex;align-items:center;gap:6px;
+  }
+  .btn-primary{background:var(--em);color:#fff;box-shadow:0 4px 12px rgba(108,92,231,.28)}
+  .btn-primary:hover{background:var(--em-d);transform:translateY(-1px);box-shadow:0 6px 16px rgba(108,92,231,.34)}
+  .btn-ghost{background:var(--card2);color:var(--txt)}
+  .btn-ghost:hover{background:#e7e1d7}
+  .btn-danger{background:#fdecec;color:var(--red)}
+  .btn-danger:hover{background:#fbdcdc}
+  .btn-sm{padding:7px 13px;font-size:.8rem}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  .toolbar .grow{flex:1;min-width:120px}
+  input,select,textarea{
+    background:var(--bg2);border:1.5px solid var(--line);color:var(--txt);
+    border-radius:12px;padding:11px 13px;font-size:.9rem;font-family:inherit;width:100%;transition:.15s;
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--em);box-shadow:0 0 0 3px var(--em-soft)}
+  label{font-size:.8rem;color:var(--muted);display:block;margin-bottom:6px;font-weight:600}
+  .field{margin-bottom:14px}
+  textarea{resize:vertical;min-height:70px}
+
+  /* Karten */
+  .grid{display:flex;flex-direction:column;gap:14px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:18px;cursor:pointer;transition:.18s;position:relative;overflow:hidden;box-shadow:var(--shadow);
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .card.done{opacity:.6}
+  .card-accent{position:absolute;left:0;top:0;bottom:0;width:5px;border-radius:0 4px 4px 0}
+  .acc-hoch{background:var(--coral)} .acc-normal{background:var(--em)} .acc-niedrig{background:#cfc8bb}
+  .card-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+  .tag{font-size:.7rem;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:.2px}
+  .t-aufgabe{background:#e9f3fb;color:#3a7eaf}
+  .t-info{background:#e6f6ee;color:#2e8a5f}
+  .t-verspaetung{background:#fdf2e3;color:#c47e2c}
+  .t-ausfall{background:#fdecec;color:#c94e4e}
+  .meta{font-size:.8rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap}
+  .card h3{font-size:1.1rem;margin:2px 0 6px;letter-spacing:-.3px;font-weight:700}
+  .card .desc{font-size:.9rem;color:#6b6357;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .badge-prio{font-size:.68rem;padding:3px 9px;border-radius:999px;font-weight:700}
+  .p-hoch{background:#ffe9e2;color:#d85a37}
+  .p-normal{background:var(--em-soft);color:var(--em-d)}
+  .p-niedrig{background:var(--card2);color:var(--muted)}
+  .done-flag{font-size:.72rem;color:var(--green);font-weight:700}
+
+  .empty{text-align:center;padding:64px 20px;color:var(--muted)}
+  .empty .ico{font-size:3.2rem;margin-bottom:12px}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(45,42,38,.35);backdrop-filter:blur(4px);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{background:var(--card);border-radius:22px;width:100%;max-width:520px;margin:auto;padding:24px;box-shadow:0 24px 70px rgba(45,42,38,.28)}
+  .modal h2{font-size:1.3rem;margin-bottom:4px;letter-spacing:-.3px}
+  .modal .sub{font-size:.84rem;color:var(--muted);margin-bottom:18px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-actions{display:flex;gap:10px;margin-top:8px}
+  .modal-actions .btn{flex:1;justify-content:center}
+  .close-x{position:absolute;top:16px;right:18px;background:var(--card2);border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .close-x:hover{background:#e7e1d7;color:var(--txt)}
+
+  /* Detail */
+  .detail-field{margin-bottom:15px}
+  .detail-field .lbl{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;font-weight:700}
+  .detail-field .val{font-size:.96rem;color:var(--txt)}
+  .code-box{background:var(--em-soft);border:1.5px dashed var(--em);border-radius:12px;padding:13px;font-family:monospace;font-size:1.15rem;color:var(--em-d);letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700}
+  .link-box a{color:var(--blue);word-break:break-all}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--txt);color:#fff;padding:12px 22px;border-radius:14px;font-size:.88rem;opacity:0;transition:.3s;z-index:200;box-shadow:var(--shadow-lg)}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+  footer{max-width:900px;margin:36px auto 0;padding:22px 18px;border-top:1px solid var(--line);font-size:.8rem;color:var(--muted);text-align:center;line-height:1.8}
+  footer a{color:var(--em);text-decoration:none;font-weight:600}
+  footer a:hover{text-decoration:underline}
+  .seg{display:flex;gap:5px;background:var(--card2);padding:5px;border-radius:14px}
+  .seg button{flex:1;border:none;background:none;color:var(--muted);padding:8px 12px;border-radius:10px;font-size:.84rem;font-weight:600;cursor:pointer;transition:.15s}
+  .seg button.active{background:#fff;color:var(--em-d);box-shadow:var(--shadow)}
+  @media(max-width:520px){.row2{grid-template-columns:1fr}.head-in{padding:12px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-in">
+    <span class="logo">📋</span>
+    <div class="brand">Unterricht<span>-Info</span></div>
+    <div class="head-actions">
+      <button class="btn btn-ghost btn-sm" id="installBtn" style="display:none">⬇ Installieren</button>
+      <span class="pill" id="rolePill">Ansicht</span>
+      <button class="btn btn-ghost btn-sm" id="loginBtn">Admin-Login</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <div class="grow seg" id="filterSeg">
+      <button class="active" data-f="aktuell">Aktuell</button>
+      <button data-f="alle">Alle</button>
+      <button data-f="erledigt">Erledigt</button>
+    </div>
+    <button class="btn btn-primary" id="newBtn" style="display:none">＋ Neues Anliegen</button>
+  </div>
+
+  <div class="grid" id="list"></div>
+  <div class="empty" id="empty" style="display:none">
+    <div class="ico">🗒️</div>
+    <div>Keine Einträge vorhanden.</div>
+  </div>
+</main>
+
+<footer>
+  <strong>Unterricht-Info</strong> — Infos &amp; Aufgaben bei Unterrichtsausfall<br>
+  <a href="#" id="impressumLink" style="color:var(--em)">Impressum</a>
+</footer>
+
+<!-- LOGIN MODAL -->
+<div class="overlay" id="loginModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2>Admin-Login</h2>
+    <p class="sub">Anmeldung für berechtigte Personen.</p>
+    <div class="field"><label>E-Mail</label><input type="email" id="email" value="fisi17@unterricht.local" placeholder="admin@example.com"></div>
+    <div class="field"><label>Passwort</label><input type="password" id="pw" value="Fisi17!Start" placeholder="••••••••"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="doLogin">Anmelden</button>
+    </div>
+    <p class="sub" style="margin-top:14px;margin-bottom:0;font-size:.75rem">Noch kein Konto? <a href="#" id="toSignup" style="color:var(--em)">Registrieren</a></p>
+  </div>
+</div>
+
+<!-- NEW/EDIT MODAL -->
+<div class="overlay" id="formModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2 id="formTitle">Neues Anliegen anlegen</h2>
+    <p class="sub" id="formStep">Schritt 1 von 5 — Worum geht es?</p>
+
+    <div class="field">
+      <label>Art des Eintrags</label>
+      <select id="f_typ">
+        <option value="aufgabe">📘 Aufgabe (z.B. irgendwo anmelden)</option>
+        <option value="info">ℹ️ Allgemeine Info</option>
+        <option value="verspaetung">⏰ Verspätung / späterer Start</option>
+        <option value="ausfall">❌ Unterricht fällt aus</option>
+      </select>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label>Datum</label><input type="date" id="f_datum"></div>
+      <div class="field"><label>Uhrzeit (optional)</label><input type="time" id="f_uhrzeit"></div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label>Kürzel (Dozent/Klasse)</label><input type="text" id="f_kuerzel" placeholder="z.B. SCH / FISI28" maxlength="20"></div>
+      <div class="field"><label>Priorität</label>
+        <select id="f_prio"><option value="hoch">Hoch</option><option value="normal" selected>Normal</option><option value="niedrig">Niedrig</option></select>
+      </div>
+    </div>
+
+    <div class="field"><label>Titel</label><input type="text" id="f_titel" placeholder="Kurz &amp; klar, z.B. 'Bei Moodle anmelden'"></div>
+    <div class="field"><label>Beschreibung</label><textarea id="f_desc" placeholder="Was ist zu tun bzw. was sollen die Schüler wissen?"></textarea></div>
+
+    <div class="row2">
+      <div class="field"><label>Code (optional)</label><input type="text" id="f_code" placeholder="z.B. AB12-CD34"></div>
+      <div class="field"><label>Link (optional)</label><input type="text" id="f_link" placeholder="https://..."></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-close>Abbrechen</button>
+      <button class="btn btn-primary" id="saveBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="overlay" id="detailModal">
+  <div class="modal" style="position:relative" id="detailBody"></div>
+</div>
+
+<!-- IMPRESSUM MODAL -->
+<div class="overlay" id="impressumModal">
+  <div class="modal" style="position:relative">
+    <button class="close-x" data-close>×</button>
+    <h2>Impressum</h2>
+    <p class="sub">Angaben gemäß § 5 TMG</p>
+    <div class="detail-field"><div class="lbl">Anbieter</div><div class="val">Alexander Scherer</div></div>
+    <div class="detail-field"><div class="lbl">Anschrift</div><div class="val">Mertensstraße 18<br>13587 Berlin</div></div>
+    <div class="detail-field"><div class="lbl">Kontakt</div><div class="val"><a href="mailto:info@alexander-scherer.com" style="color:var(--blue)">info@alexander-scherer.com</a></div></div>
+    <div class="detail-field"><div class="lbl">Hinweis</div><div class="val">Kleingewerbe gem. § 19 UStG. Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = "https://sntkvqzfiyhtvtufqfgp.supabase.co";
+const SB_KEY = "sb_publishable_6xbD_lAeICWBhdLWDmGmpQ_DBZmUH_A";
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+let session = null, items = [], filter = "aktuell", editId = null, authMode = "login";
+
+const $ = s => document.querySelector(s);
+const esc = s => (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const todayISO = () => new Date().toISOString().slice(0,10);
+
+const TYP = {
+  aufgabe:{label:"Aufgabe",cls:"t-aufgabe"}, info:{label:"Info",cls:"t-info"},
+  verspaetung:{label:"Verspätung",cls:"t-verspaetung"}, ausfall:{label:"Ausfall",cls:"t-ausfall"}
+};
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600);}
+function open(id){$("#"+id).classList.add("open")}
+function closeM(id){$("#"+id).classList.remove("open")}
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=e=>e.target.closest(".overlay").classList.remove("open"));
+document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)o.classList.remove("open")});
+
+function fmtDate(d){const dt=new Date(d+"T00:00:00");return dt.toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric"});}
+
+async function refreshAuth(){
+  const {data}=await sb.auth.getSession();
+  session=data.session;
+  const isAdmin=!!session;
+  $("#rolePill").textContent=isAdmin?"Admin":"Ansicht";
+  $("#rolePill").className="pill"+(isAdmin?" admin":"");
+  $("#newBtn").style.display=isAdmin?"inline-flex":"none";
+  $("#loginBtn").textContent=isAdmin?"Abmelden":"Admin-Login";
+  render();
+}
+
+$("#loginBtn").onclick=async()=>{
+  if(session){await sb.auth.signOut();await refreshAuth();toast("Abgemeldet");}
+  else{authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";open("loginModal");}
+};
+$("#toSignup").onclick=e=>{
+  e.preventDefault();
+  authMode=authMode==="login"?"signup":"login";
+  $("#loginModal h2").textContent=authMode==="login"?"Admin-Login":"Konto registrieren";
+  $("#doLogin").textContent=authMode==="login"?"Anmelden":"Registrieren";
+  $("#toSignup").textContent=authMode==="login"?"Registrieren":"Zurück zum Login";
+};
+$("#doLogin").onclick=async()=>{
+  const email=$("#email").value.trim(), pw=$("#pw").value;
+  if(!email||!pw)return toast("Bitte E-Mail und Passwort eingeben");
+  const fn=authMode==="login"?sb.auth.signInWithPassword({email,password:pw}):sb.auth.signUp({email,password:pw});
+  const {error}=await fn;
+  if(error)return toast("Fehler: "+error.message);
+  closeM("loginModal");$("#pw").value="";
+  await refreshAuth();
+  toast(authMode==="login"?"Angemeldet ✓":"Registriert ✓ — ggf. E-Mail bestätigen");
+};
+
+$("#impressumLink").onclick=e=>{e.preventDefault();open("impressumModal");};
+
+// FILTER
+$("#filterSeg").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  $("#filterSeg .active").classList.remove("active");b.classList.add("active");filter=b.dataset.f;render();
+});
+
+// NEW
+$("#newBtn").onclick=()=>{editId=null;resetForm();open("formModal");};
+function resetForm(){
+  $("#formTitle").textContent=editId?"Anliegen bearbeiten":"Neues Anliegen anlegen";
+  $("#f_typ").value="aufgabe";$("#f_datum").value=todayISO();$("#f_uhrzeit").value="";
+  $("#f_kuerzel").value="";$("#f_prio").value="normal";$("#f_titel").value="";
+  $("#f_desc").value="";$("#f_code").value="";$("#f_link").value="";
+}
+
+$("#saveBtn").onclick=async()=>{
+  if(!session)return toast("Bitte zuerst anmelden");
+  const rec={
+    typ:$("#f_typ").value, datum:$("#f_datum").value, uhrzeit:$("#f_uhrzeit").value||null,
+    kuerzel:$("#f_kuerzel").value.trim(), prioritaet:$("#f_prio").value,
+    titel:$("#f_titel").value.trim(), beschreibung:$("#f_desc").value.trim()||null,
+    code:$("#f_code").value.trim()||null, link:$("#f_link").value.trim()||null
+  };
+  if(!rec.datum||!rec.kuerzel||!rec.titel)return toast("Datum, Kürzel und Titel sind Pflicht");
+  let res;
+  if(editId)res=await sb.from("anliegen").update(rec).eq("id",editId);
+  else res=await sb.from("anliegen").insert(rec);
+  if(res.error)return toast("Fehler: "+res.error.message);
+  closeM("formModal");toast(editId?"Aktualisiert ✓":"Angelegt ✓");
+  await load();
+};
+
+async function load(){
+  const {data,error}=await sb.from("anliegen").select("*").order("datum",{ascending:false}).order("created_at",{ascending:false});
+  if(error){toast("Ladefehler: "+error.message);return;}
+  items=data||[];render();
+}
+
+function filtered(){
+  if(filter==="erledigt")return items.filter(i=>i.erledigt);
+  if(filter==="alle")return items;
+  // aktuell: nicht erledigt UND datum >= heute
+  return items.filter(i=>!i.erledigt && i.datum>=todayISO());
+}
+
+function render(){
+  const list=$("#list"), data=filtered();
+  $("#empty").style.display=data.length?"none":"block";
+  list.innerHTML=data.map(i=>{
+    const t=TYP[i.typ]||TYP.info;
+    return `<div class="card ${i.erledigt?'done':''}" onclick="showDetail('${i.id}')">
+      <div class="card-accent acc-${i.prioritaet}"></div>
+      <div class="card-top">
+        <span class="tag ${t.cls}">${t.label}</span>
+        <span class="badge-prio p-${i.prioritaet}">${i.prioritaet}</span>
+        ${i.erledigt?'<span class="done-flag">✓ erledigt</span>':''}
+      </div>
+      <h3>${esc(i.titel)}</h3>
+      ${i.beschreibung?`<div class="desc">${esc(i.beschreibung)}</div>`:''}
+      <div class="meta" style="margin-top:8px">
+        <span>📅 ${fmtDate(i.datum)}${i.uhrzeit?' · '+i.uhrzeit+' Uhr':''}</span>
+        <span>👤 ${esc(i.kuerzel)}</span>
+        ${i.code?'<span>🔑 Code</span>':''}
+        ${i.link?'<span>🔗 Link</span>':''}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+window.showDetail=id=>{
+  const i=items.find(x=>x.id===id);if(!i)return;
+  const t=TYP[i.typ]||TYP.info;const admin=!!session;
+  $("#detailBody").innerHTML=`
+    <button class="close-x" onclick="closeM('detailModal')">×</button>
+    <div class="card-top" style="margin-bottom:12px">
+      <span class="tag ${t.cls}">${t.label}</span>
+      <span class="badge-prio p-${i.prioritaet}">${i.prioritaet}</span>
+      ${i.erledigt?'<span class="done-flag">✓ erledigt</span>':''}
+    </div>
+    <h2 style="margin-bottom:14px">${esc(i.titel)}</h2>
+    <div class="detail-field"><div class="lbl">Datum</div><div class="val">📅 ${fmtDate(i.datum)}${i.uhrzeit?' · '+i.uhrzeit+' Uhr':''}</div></div>
+    <div class="detail-field"><div class="lbl">Kürzel</div><div class="val">👤 ${esc(i.kuerzel)}</div></div>
+    ${i.beschreibung?`<div class="detail-field"><div class="lbl">Beschreibung</div><div class="val">${esc(i.beschreibung).replace(/\n/g,'<br>')}</div></div>`:''}
+    ${i.code?`<div class="detail-field"><div class="lbl">Anmelde-Code</div><div class="code-box"><span>${esc(i.code)}</span><button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(i.code)}');toast('Code kopiert')">Kopieren</button></div></div>`:''}
+    ${i.link?`<div class="detail-field link-box"><div class="lbl">Link</div><div class="val"><a href="${esc(i.link)}" target="_blank">${esc(i.link)}</a></div></div>`:''}
+    ${admin?`<div class="modal-actions" style="margin-top:18px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleDone('${i.id}',${!i.erledigt})">${i.erledigt?'↩ Wieder offen':'✓ Erledigt'}</button>
+        <button class="btn btn-ghost btn-sm" onclick="editItem('${i.id}')">✏️ Bearbeiten</button>
+        <button class="btn btn-danger btn-sm" onclick="delItem('${i.id}')">🗑️ Löschen</button>
+      </div>`:''}
+  `;
+  open("detailModal");
+};
+
+window.toggleDone=async(id,val)=>{
+  const {error}=await sb.from("anliegen").update({erledigt:val}).eq("id",id);
+  if(error)return toast("Fehler: "+error.message);
+  closeM("detailModal");await load();toast(val?"Als erledigt markiert":"Wieder offen");
+};
+window.editItem=id=>{
+  const i=items.find(x=>x.id===id);if(!i)return;editId=id;closeM("detailModal");
+  $("#formTitle").textContent="Anliegen bearbeiten";
+  $("#f_typ").value=i.typ;$("#f_datum").value=i.datum;$("#f_uhrzeit").value=i.uhrzeit||"";
+  $("#f_kuerzel").value=i.kuerzel;$("#f_prio").value=i.prioritaet;$("#f_titel").value=i.titel;
+  $("#f_desc").value=i.beschreibung||"";$("#f_code").value=i.code||"";$("#f_link").value=i.link||"";
+  open("formModal");
+};
+window.delItem=async id=>{
+  if(!confirm("Diesen Eintrag wirklich löschen?"))return;
+  const {error}=await sb.from("anliegen").delete().eq("id",id);
+  if(error)return toast("Fehler: "+error.message);
+  closeM("detailModal");await load();toast("Gelöscht");
+};
+window.toast=toast;window.closeM=closeM;
+
+// Realtime: Schüler sehen Updates live
+sb.channel("anliegen-rt").on("postgres_changes",{event:"*",schema:"public",table:"anliegen"},load).subscribe();
+
+(async()=>{await refreshAuth();await load();})();
+
+/* ---- PWA: Installierbarkeit (Service Worker inline + Install-Button) ---- */
+(function setupPWA(){
+  // Minimaler Service Worker als Blob – nötig, damit Browser "Installieren" anbietet
+  const swCode = `
+    const CACHE = 'unterricht-info-v1';
+    self.addEventListener('install', e => self.skipWaiting());
+    self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        fetch(e.request).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => { try { c.put(e.request, copy); } catch(_){} });
+          return res;
+        }).catch(() => caches.match(e.request))
+      );
+    });
+  `;
+  if ('serviceWorker' in navigator) {
+    try {
+      const blob = new Blob([swCode], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url).catch(()=>{});
+    } catch(_){}
+  }
+
+  let deferred = null;
+  const btn = document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferred = e;
+    btn.style.display = 'inline-flex';
+  });
+  btn.onclick = async () => {
+    if (!deferred) {
+      toast('Über das Browser-Menü „App installieren" hinzufügen');
+      return;
+    }
+    deferred.prompt();
+    const { outcome } = await deferred.userChoice;
+    deferred = null;
+    btn.style.display = 'none';
+    if (outcome === 'accepted') toast('Wird installiert ✓');
+  };
+  window.addEventListener('appinstalled', () => {
+    btn.style.display = 'none';
+    toast('App installiert ✓');
+  });
+})();
+</script>
+</body>
+</html>
