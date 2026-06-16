@@ -246,7 +246,7 @@
     <div class="modal-actions">
       <button class="btn btn-primary" id="doLogin">Anmelden</button>
     </div>
-    <p class="sub" style="margin-top:14px;margin-bottom:0;font-size:.75rem">Noch kein Konto? <a href="#" id="toSignup" style="color:var(--em)">Registrieren</a></p>
+    <p class="sub" style="margin-top:14px;margin-bottom:0;font-size:.75rem">Nur für berechtigte Personen. Zugänge werden vom Super-Admin vergeben.</p>
   </div>
 </div>
 
@@ -392,7 +392,7 @@ const SB_URL = "https://sntkvqzfiyhtvtufqfgp.supabase.co";
 const SB_KEY = "sb_publishable_6xbD_lAeICWBhdLWDmGmpQ_DBZmUH_A";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
-let session = null, items = [], filter = "aktuell", editId = null, authMode = "login";
+let session = null, items = [], filter = "aktuell", editId = null;
 let myRole = null; // 'admin' | 'superadmin' | null
 
 const $ = s => document.querySelector(s);
@@ -482,7 +482,7 @@ $("#gateAdminLink").onclick=async e=>{
   // App NICHT freigeben – Login-Fenster legt sich über die Sperrseite.
   // Bei erfolgreichem Login schaltet refreshAuth() die App frei,
   // beim Schließen ohne Login bleibt die Sperre bestehen.
-  authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";
+  $("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";
   open("loginModal");
 };
 
@@ -518,24 +518,16 @@ $("#loginBtn").onclick=async()=>{
     const ok=await checkGate();
     if(!ok){ $("#app").style.display="none"; $("#gate").style.display="flex"; }
   }
-  else{authMode="login";$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";open("loginModal");}
-};
-$("#toSignup").onclick=e=>{
-  e.preventDefault();
-  authMode=authMode==="login"?"signup":"login";
-  $("#loginModal h2").textContent=authMode==="login"?"Admin-Login":"Konto registrieren";
-  $("#doLogin").textContent=authMode==="login"?"Anmelden":"Registrieren";
-  $("#toSignup").textContent=authMode==="login"?"Registrieren":"Zurück zum Login";
+  else{$("#loginModal h2").textContent="Admin-Login";$("#doLogin").textContent="Anmelden";open("loginModal");}
 };
 $("#doLogin").onclick=async()=>{
   const email=$("#email").value.trim(), pw=$("#pw").value;
   if(!email||!pw)return toast("Bitte E-Mail und Passwort eingeben");
-  const fn=authMode==="login"?sb.auth.signInWithPassword({email,password:pw}):sb.auth.signUp({email,password:pw});
-  const {error}=await fn;
+  const {error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error)return toast("Fehler: "+error.message);
   closeM("loginModal");$("#pw").value="";
   await refreshAuth();
-  toast(authMode==="login"?"Angemeldet ✓":"Registriert ✓ — ggf. E-Mail bestätigen");
+  toast("Angemeldet ✓");
 };
 
 $("#impressumLink").onclick=e=>{e.preventDefault();open("impressumModal");};
