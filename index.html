@@ -493,9 +493,13 @@ async function refreshAuth(){
   // Rolle des eingeloggten Admins ermitteln
   myRole=null;
   if(isAdmin){
-    const email=session.user?.email;
-    const {data:r}=await sb.from("admin_roles").select("role").eq("email",email).maybeSingle();
-    myRole = r ? r.role : "admin"; // bekannter Login ohne Eintrag = normaler Admin
+    const email=(session.user?.email||"").trim().toLowerCase();
+    try{
+      const {data:rows,error}=await sb.from("admin_roles").select("email,role");
+      if(error){ console.warn("Rollen-Abfrage Fehler:",error.message); }
+      const match=(rows||[]).find(r=>(r.email||"").trim().toLowerCase()===email);
+      myRole = match ? match.role : "admin"; // bekannter Login ohne Eintrag = normaler Admin
+    }catch(e){ console.warn("Rollen-Abfrage Ausnahme:",e); myRole="admin"; }
   }
   const isSuper = myRole==="superadmin";
   $("#rolePill").textContent=isSuper?"Super-Admin":(isAdmin?"Admin":"Ansicht");
